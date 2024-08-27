@@ -9,3 +9,6 @@ TRUNCATE TABLE hardwarenames;
 
 SELECT *
 FROM hardwarenames
+
+
+

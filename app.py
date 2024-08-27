@@ -1,15 +1,33 @@
-from flask import Flask, request, redirect, url_for, render_template
+from flask import Flask, render_template, request, redirect, url_for
 import pandas as pd
 import os
 import psycopg2
 from psycopg2 import sql
 
+
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'temp'
 app.config['ALLOWED_EXTENSIONS'] = {'xls', 'xlsx'}
+DATABASE_URL = "postgresql://postgres:2002@localhost:5432/test_26aug"
 
-DATABASE_URL = "postgresql://postgres:2002@localhost:5432/Database for Project "
 
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+def check_temp_files(folder):
+    return any(os.path.isfile(os.path.join(folder, f)) for f in  os.listdir(folder))
+
+def import_csv_to_db(csv_file_path):
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    with open(csv_file_path, 'r') as f:
+        #import data into table hardwarenames
+        cur.copy_expert(sql.SQL("""
+            COPY hardwarenames FROM STDIN WITH CSV HEADER
+        """), f)
+    conn.commit()
+    cur.close()
+    conn.close()
 
 def delete_files_in_temp(temp_folder):
     try:
@@ -18,18 +36,10 @@ def delete_files_in_temp(temp_folder):
             file_path = os.path.join(temp_folder, file)
             if os.path.isfile(file_path):
                 os.remove(file_path)
-        print("Deleted All files in temp folder.")
-    except OSError:
-        print("Error while deleting files in temp folder.")
-
-
-#def delete_tables_in_db():
-
-def allowed_file(filename):
-
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
-
-
+        print("Deleted all files in temp folder.")
+    except OSError as e:
+        print(f"Error while deleting files in temp folder: {e}")
+###########
 def run_selected_lines_from_sql(sql_file_path, line_numbers):
     # เปิดไฟล์ .sql เพื่ออ่านบรรทัดที่ต้องการ
     with open(sql_file_path, 'r') as file:
@@ -70,58 +80,71 @@ def import_csv_to_db(csv_file_path):
     conn.commit()
     cur.close()
     conn.close()
+#############
 
 
-
-
-@app.route('/')
-def index():
-
-    temp_folder = r"D:\TELECOM\Telecom4-1\GIT for Project\coop-y4-kmitl\temp"
-    delete_files_in_temp(temp_folder)
-
-    run_selected_lines_from_sql(sql_file_path='db_tools.sql', line_numbers=[6])
-
-    return redirect(url_for('upload_file'))
-
-
-
-
-@app.route('/upload', methods=['GET', 'POST'])
-def upload_file():
+@app.route('/', methods=['GET', 'POST'])
+def homepage():
     if request.method == 'POST':
         if 'file' not in request.files:
-            return redirect(request.url)
+            return redirect(url_for('home'))
         file = request.files['file']
         if file.filename == '':
-            return redirect(request.url)
+            return redirect(url_for('home'))
         if file and allowed_file(file.filename):
             filename = file.filename
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
+        
             # Convert Excel file to CSV
             csv_filename = filename.rsplit('.', 1)[0] + '.csv'
             csv_filepath = os.path.join(app.config['UPLOAD_FOLDER'], csv_filename)
-            # Read Excel file and save it as CSV
+            
+            # อ่านไฟล์ Excel และบันทึกเป็น CSV
             df = pd.read_excel(filepath)
             df.to_csv(csv_filepath, index=False)
-            run_selected_lines_from_sql(sql_file_path='db_tools.sql', line_numbers=[0,1,2,3,4,5])
-            # Import CSV into database
-            import_csv_to_db(csv_filepath)
-            return f"File uploaded, converted to CSV, and imported into the database: {csv_filename}"
+            
+            # รันโค้ด SQL จากไฟล์ db_tools.sql
+            #run_selected_lines_from_sql(sql_file_path='db_tools.sql', line_numbers=[0,1,2,3,4,5])
+            
+            # นำเข้าข้อมูล CSV ไปยังฐานข้อมูล
+            #import_csv_to_db(csv_filepath)
+            
+            # เปลี่ยนไปยังหน้า display.html
+        return render_template('display.html')
+    if check_temp_files(app.config['UPLOAD_FOLDER']):
+        return render_template('display.html')
+    return render_template('home.html')
     
-    return '''
-    <!doctype html>
-    <title>Upload an Excel file</title>
-    <h1>Upload an Excel file</h1>
-    <form action="" method=post enctype=multipart/form-data>
-      <input type=file name=file>
-      <input type=submit value=Upload>
-    </form>
-    '''
 
+@app.route('/home')
+def home():
+    return render_template('home.html')
 
+@app.route('/display')
+def display():
+    return render_template('display.html')
 
+@app.route('/edit')
+def edit():
+    return render_template('edit.html')
+
+@app.route('/save')
+def save():
+    return render_template('save.html')
+
+@app.route('/export')
+def export():
+    return render_template('export.html')
+
+@app.route('/delete_files', methods=['POST'])
+def delete_files():
+    delete_files_in_temp(app.config['UPLOAD_FOLDER'])
+    #run_selected_lines_from_sql(sql_file_path='db_tools.sql', line_numbers=[6])
+
+    return redirect(url_for('home'))
+
+# เริ่ม Flask Application
 if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
