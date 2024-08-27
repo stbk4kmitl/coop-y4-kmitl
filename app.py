@@ -8,7 +8,7 @@ from psycopg2 import sql
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'temp'
 app.config['ALLOWED_EXTENSIONS'] = {'xls', 'xlsx'}
-DATABASE_URL = "postgresql://postgres:2002@localhost:5432/test_26aug"
+DATABASE_URL = "postgresql://postgres:2002@localhost:5432/Database for Project "
 
 
 def allowed_file(filename):
@@ -39,7 +39,11 @@ def delete_files_in_temp(temp_folder):
         print("Deleted all files in temp folder.")
     except OSError as e:
         print(f"Error while deleting files in temp folder: {e}")
-###########
+
+
+
+###########################################################################
+
 def run_selected_lines_from_sql(sql_file_path, line_numbers):
     # เปิดไฟล์ .sql เพื่ออ่านบรรทัดที่ต้องการ
     with open(sql_file_path, 'r') as file:
@@ -80,7 +84,13 @@ def import_csv_to_db(csv_file_path):
     conn.commit()
     cur.close()
     conn.close()
-#############
+
+
+
+
+
+
+################################################################
 
 
 @app.route('/', methods=['GET', 'POST'])
@@ -105,15 +115,15 @@ def homepage():
             df.to_csv(csv_filepath, index=False)
             
             # รันโค้ด SQL จากไฟล์ db_tools.sql
-            #run_selected_lines_from_sql(sql_file_path='db_tools.sql', line_numbers=[0,1,2,3,4,5])
+            run_selected_lines_from_sql(sql_file_path='db_tools.sql', line_numbers=[0,1,2,3,4])
             
             # นำเข้าข้อมูล CSV ไปยังฐานข้อมูล
-            #import_csv_to_db(csv_filepath)
+            import_csv_to_db(csv_filepath)
             
             # เปลี่ยนไปยังหน้า display.html
-        return render_template('display.html')
+        return redirect(url_for('display'))
     if check_temp_files(app.config['UPLOAD_FOLDER']):
-        return render_template('display.html')
+        return redirect(url_for('display'))
     return render_template('home.html')
     
 
@@ -123,7 +133,20 @@ def home():
 
 @app.route('/display')
 def display():
-    return render_template('display.html')
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    #cur.execute("SELECT * FROM hardwarenames;")
+
+    cur.execute("""
+            SELECT * 
+            FROM hardwarenames
+            ORDER BY unit_ DESC
+        """)
+
+    rows = cur.fetchall()
+    cur.close()
+    return render_template('display.html', rows=rows)
+    
 
 @app.route('/edit')
 def edit():
@@ -140,7 +163,7 @@ def export():
 @app.route('/delete_files', methods=['POST'])
 def delete_files():
     delete_files_in_temp(app.config['UPLOAD_FOLDER'])
-    #run_selected_lines_from_sql(sql_file_path='db_tools.sql', line_numbers=[6])
+    run_selected_lines_from_sql(sql_file_path='db_tools.sql', line_numbers=[6])
 
     return redirect(url_for('home'))
 
@@ -149,3 +172,5 @@ if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
     app.run(debug=True)
+
+
