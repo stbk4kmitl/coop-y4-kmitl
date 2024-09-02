@@ -85,10 +85,40 @@ def import_csv_to_db(csv_file_path):
     cur.close()
     conn.close()
 
+"""
+def query_racks():
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    cur.execute("SELECT MAX(rack_) FROM hardwarenames")
+    max_rack = cur.fetchone()[0]
+    for rack_value in range(1, max_rack + 1):
+        cur.execute("""
+#    """        SELECT * 
+#            FROM hardwarenames
+#            WHERE rack_ = %s
+#            ORDER BY unit_ DESC
+#        """, (rack_value,))
+#    """2    results = cur.fetchall()
+#        print(f"Results for rack_ = {rack_value}:")
+#        for row in results:
+#            print(row)
+#        print("\n")
 
-
-
-
+#    cur.close()
+#    conn.close()
+"""
+def get_rack_values():
+    conn = psycopg2.connect(DATABASE_URL)
+    cur = conn.cursor()
+    
+    cur.execute("SELECT DISTINCT rack_ FROM hardwarenames ORDER BY rack_")
+    rack_values = cur.fetchall()
+    
+    cur.close()
+    conn.close()
+    
+    return rack_values
+"""
 
 ################################################################
 
@@ -119,7 +149,11 @@ def homepage():
             
             # นำเข้าข้อมูล CSV ไปยังฐานข้อมูล
             import_csv_to_db(csv_filepath)
-            
+
+            #query_racks()
+            #run_selected_lines_from_sql(sql_file_path='db_tools.sql', line_numbers=[10,11,12,13,14,15,16,17,18,19,20,21,22,23,24])
+            #rack_values = get_rack_values()
+            #print("********************************", rack_values)
             # เปลี่ยนไปยังหน้า display.html
         return redirect(url_for('display'))
     if check_temp_files(app.config['UPLOAD_FOLDER']):
@@ -135,14 +169,11 @@ def home():
 def display():
     conn = psycopg2.connect(DATABASE_URL)
     cur = conn.cursor()
-    #cur.execute("SELECT * FROM hardwarenames;")
-
     cur.execute("""
             SELECT * 
             FROM hardwarenames
             ORDER BY unit_ DESC
         """)
-
     rows = cur.fetchall()
     cur.close()
     return render_template('display.html', rows=rows)

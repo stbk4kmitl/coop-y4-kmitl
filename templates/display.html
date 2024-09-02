@@ -27,25 +27,21 @@
     <table border="1">
         <thead>
             <tr>
-                <th>Hardware</th>
-                <th>Rack</th>
-                <th>Unit</th>
-                
+                {% for col in column_names %}
+                    <th>{{ col }}</th>
+                {% endfor %}    
             </tr>
         </thead>
         <tbody>
             {% for row in rows%}
-            <tr>
-                <td>{{ row[0] }}</td>
-                <td>{{ row[1] }}</td>
-                <td>{{ row[2] }}</td>
-            </tr>
+                <tr>
+                    {% for cell in row %}
+                    <td>{{ cell }}</td>
+                    {% endfor %}
+
+                </tr>
             {% endfor %}
         </tbody>
     </table>
-    
-
-
-
 </body>
 </html>
